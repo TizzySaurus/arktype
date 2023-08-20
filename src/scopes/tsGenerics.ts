@@ -12,9 +12,17 @@ export type InferredTsGenerics = {
         // another, they shouldn't need a bound local scope
         {}
     >
+    Array: Generic<
+        ["T"],
+        "T[]",
+        // as long as the generics in the root scope don't reference one
+        // another, they shouldn't need a bound local scope
+        {}
+    >
 }
 
 export const tsGenerics: RootScope<InferredTsGenerics> = Scope.root({
+    "Array<T>": "T[]"
     // "Record<K, V>": {
     //     // Remove this once we support constraints on generic parameters:
     //     // https://github.com/arktypeio/arktype/issues/796

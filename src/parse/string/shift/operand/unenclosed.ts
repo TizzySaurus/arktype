@@ -13,9 +13,10 @@ import {
 import { hasArkKind } from "../../../../compile/registry.js"
 import type { TypeNode } from "../../../../nodes/composite/type.js"
 import { typeNode } from "../../../../nodes/composite/type.js"
-import type { Module } from "../../../../scope.js"
-import type { Generic, GenericProps } from "../../../../type.js"
-import type { GenericInstantiationAst } from "../../../ast/ast.js"
+import type { Apply, Kind, Module } from "../../../../scope.js"
+import type { Generic, GenericProps, inferTypeRoot } from "../../../../type.js"
+import type { GenericInstantiationAst, inferAst } from "../../../ast/ast.js"
+import { CastTo } from "../../../definition.js"
 import type { ParsedArgs } from "../../../generic.js"
 import {
     parseGenericArgs,
@@ -48,7 +49,15 @@ export type parseUnenclosed<
         ? result extends error<infer message>
             ? state.error<message>
             : result extends keyof $
-            ? $[result] extends GenericProps
+            ? $[result] extends Kind
+                ? parseKindInstantiation<
+                      token,
+                      $[result],
+                      state.scanTo<s, unscanned>,
+                      $,
+                      args
+                  >
+                : $[result] extends GenericProps
                 ? parseGenericInstantiation<
                       token,
                       $[result],
@@ -110,6 +119,26 @@ export type parseGenericInstantiation<
               result
         : never
     : state.error<writeInvalidGenericArgsMessage<name, g["parameters"], []>>
+
+export type parseKindInstantiation<
+    name extends string,
+    k extends Kind,
+    s extends StaticState,
+    $,
+    args
+    // have to skip whitespace here since TS allows instantiations like `Partial    <T>`
+> = Scanner.skipWhitespace<s["unscanned"]> extends `<${infer unscanned}`
+    ? parseGenericArgs<name, ["t"], unscanned, $, args> extends infer result
+        ? result extends ParsedArgs<infer argAsts, infer nextUnscanned>
+            ? state.setRoot<
+                  s,
+                  CastTo<Apply<k, inferAst<argAsts[0], $, args>>>,
+                  nextUnscanned
+              >
+            : // propagate error
+              result
+        : never
+    : state.error<writeInvalidGenericArgsMessage<name, ["t"], []>>
 
 const unenclosedToNode = (s: DynamicState, token: string): TypeNode =>
     maybeParseReference(s, token) ??

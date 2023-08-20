@@ -68,7 +68,9 @@ export type inferExpression<
     ? keyof inferAst<ast[1], $, args>
     : never
 
-export type validateAst<ast, $, args> = ast extends string
+export type validateAst<ast, $, args> = ast extends CastTo<infer t>
+    ? t
+    : ast extends string
     ? validateStringAst<ast, $>
     : ast extends PostfixExpression<infer operator, infer operand>
     ? operator extends "[]"

@@ -1,4 +1,10 @@
-import type { Dict, evaluate, isAny, nominal } from "../dev/utils/src/main.js"
+import type {
+    Dict,
+    conform,
+    evaluate,
+    isAny,
+    nominal
+} from "../dev/utils/src/main.js"
 import {
     domainOf,
     hasDomain,
@@ -11,7 +17,7 @@ import { InputParameterName } from "./compile/compile.js"
 import type { arkKind } from "./compile/registry.js"
 import { addArkKind, hasArkKind } from "./compile/registry.js"
 import type { ScopeConfig } from "./config.js"
-import type { TypeConfig, TypeNode } from "./main.js"
+import { TypeConfig, TypeNode, scope } from "./main.js"
 import { builtins, typeNode } from "./nodes/composite/type.js"
 import type {
     CastTo,
@@ -40,7 +46,9 @@ import type {
     extractOut,
     Generic,
     GenericProps,
-    TypeParser
+    inferTypeRoot,
+    TypeParser,
+    validateTypeRoot
 } from "./type.js"
 import {
     createTypeParser,
@@ -48,6 +56,40 @@ import {
     Type,
     validateUninstantiatedGeneric
 } from "./type.js"
+
+/**
+ * A unique symbol used internally within the `Kind` class.
+ * This serves as a unique identifier for type-level operations and ensures that there are no naming collisions.
+ */
+export declare const _: unique symbol
+
+/**
+ * Represents the type of the unique symbol `_`.
+ */
+export type _ = typeof _
+
+type Fn = (...args: never[]) => unknown
+
+export declare abstract class Kind<F extends Fn = Fn> {
+    abstract readonly [_]: unknown
+    f: F
+}
+
+export type Apply<
+    /**
+     * A higher-order type-level function.
+     */
+    F extends Kind,
+    /**
+     * The input type of the type-level function. `X` must be a subtype of the
+     * input type of the type-level function.
+     */
+    X extends Parameters<F["f"]>[0]
+> = ReturnType<
+    (F & {
+        readonly [_]: X
+    })["f"]
+>
 
 export type ScopeParser<parent, ambient> = {
     <const aliases>(
@@ -115,7 +157,7 @@ type bootstrapExports<aliases> = bootstrapAliases<{
 }>
 
 /** These are legal as values of a scope but not as definitions in other contexts */
-type PreparsedResolution = Module | GenericProps
+type PreparsedResolution = Module | GenericProps | Kind
 
 type bootstrapAliases<aliases> = {
     [k in Exclude<
@@ -185,6 +227,12 @@ export type Module<r extends Resolutions = any> = {
             ? Type<never, $<r>>
             : isAny<r["exports"][k]> extends true
             ? Type<any, $<r>>
+            : r["exports"][k] extends Kind<any>
+            ? <const def>(
+                  def: validateTypeRoot<def, $<r>>
+              ) => inferTypeRoot<def, $<r>> extends infer t
+                  ? Apply<r["exports"][k], t>
+                  : never
             : r["exports"][k] extends PreparsedResolution
             ? r["exports"][k]
             : Type<r["exports"][k], $<r>>
@@ -549,3 +597,26 @@ type parsePossibleGenericDeclaration<
           name: k
           params: []
       }
+
+// Custom user type
+interface Chunk<T> {
+    t: T
+    isChunk: true
+}
+
+// User defines the HKT signature
+interface ToChunk extends Kind {
+    f(x: this[_]): Chunk<typeof x>
+}
+
+// User can now reference the HKT in any ArkType syntax with autocompletion
+
+const s = scope({
+    foo: "string",
+    toChunk: {} as ToChunk,
+    dateChunkArray: "Array<toChunk<Date>>"
+}).export()
+
+// Generics can also be instantiated after the scope is defined
+const t = s.toChunk("toChunk<boolean[]>")
+//    ^?
