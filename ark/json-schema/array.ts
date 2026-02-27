@@ -71,19 +71,34 @@ export const parseArrayJsonSchema: Type<
 	}
 
 	let itemsIsPrefixItems = false
+	let itemsHaveBeenPreProcessed = false
+
 	if ("prefixItems" in jsonSchema) {
 		if ("items" in jsonSchema) {
 			if ("additionalItems" in jsonSchema) {
 				throwParseError(
 					writeJsonSchemaArrayAdditionalItemsAndItemsAndPrefixItemsMessage()
 				)
-			} else jsonSchema.additionalItems = jsonSchema.items
+			}
+			if (Array.isArray(jsonSchema.items)) {
+				arktypeArraySchema.sequence = {
+					prefix: [...jsonSchema.prefixItems, ...jsonSchema.items].map(
+						item => jsonSchemaToType(item as never).internal
+					)
+				}
+				itemsHaveBeenPreProcessed = true
+			} else {
+				jsonSchema.additionalItems = jsonSchema.items
+				jsonSchema.items = jsonSchema.prefixItems
+				itemsIsPrefixItems = true
+			}
+		} else {
+			jsonSchema.items = jsonSchema.prefixItems
+			itemsIsPrefixItems = true
 		}
-		jsonSchema.items = jsonSchema.prefixItems
-		itemsIsPrefixItems = true
 	}
 
-	if ("items" in jsonSchema) {
+	if (!itemsHaveBeenPreProcessed && "items" in jsonSchema) {
 		if (Array.isArray(jsonSchema.items)) {
 			arktypeArraySchema.sequence = {
 				prefix: jsonSchema.items.map(item => jsonSchemaToType(item).internal)
