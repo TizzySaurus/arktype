@@ -15,7 +15,9 @@ export type inferJsonSchemaComposition<schema, t> =
 	"allOf" extends keyof schema ?
 		t extends never ?
 			t // "allOf" has incompatible schemas, so don't keep looking
-		: schema["allOf"] extends [infer firstSchema, ...infer restOfSchemas] ?
+		: schema["allOf"] extends (
+			readonly [infer firstSchema, ...infer restOfSchemas]
+		) ?
 			inferJsonSchemaComposition<
 				{ allOf: restOfSchemas },
 				inferJsonSchema<firstSchema, t>
@@ -31,6 +33,7 @@ export type inferJsonSchemaComposition<schema, t> =
 
 const parseAllOfJsonSchema = (jsonSchemas: readonly JsonSchema[]): Type =>
 	jsonSchemas
+		// @ts-ignore Suppress 'excessivevely deep and possibly infinite' error
 		.map(jsonSchema => jsonSchemaToType(jsonSchema as never))
 		.reduce((acc, validator) => acc.and(validator))
 

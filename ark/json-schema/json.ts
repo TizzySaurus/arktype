@@ -48,7 +48,7 @@ export type inferJsonSchema<schema, t = unknown> =
 	: schema extends JsonSchema.Numeric ? t & number
 	: schema extends JsonSchema.Array ? t & inferJsonSchemaArray<schema>
 	: schema extends JsonSchema.Object ? t & inferJsonSchemaObject<schema>
-	: schema extends JsonSchema.String ? t & inferJsonSchemaString<schema>
+	: schema extends JsonSchema.String ? t & inferJsonSchemaString
 	: t extends {} ? t
 	: ErrorMessage<"Failed to infer JSON Schema">
 

@@ -91,7 +91,7 @@ contextualize(() => {
 
 		attest(
 			() =>
-				// @ts-expect-error
+				// @ts-ignore Suppress 'excessively deep and possibly infinite' error
 				jsonSchemaToType({
 					type: "array",
 					additionalItems: { type: "string" },

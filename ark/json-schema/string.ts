@@ -2,7 +2,7 @@ import { rootSchema, type Intersection } from "@ark/schema"
 import type { Out, Type } from "arktype"
 import { JsonSchemaScope, type StringSchema } from "./scope.ts"
 
-export type inferJsonSchemaString<schema> = string
+export type inferJsonSchemaString = string
 
 export const parseStringJsonSchema: Type<
 	(In: StringSchema) => Out<Type<string, any>>,
